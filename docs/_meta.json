@@ -1,12 +1,17 @@
 [
   {
-    "text": "Guide",
-    "link": "/guide/",
-    "activeMatch": "/guide/"
+    "text": "基础工具",
+    "link": "/basic_env_utils/",
+    "activeMatch": "/basic_env_utils/"
   },
   {
-    "text": "Hello World",
-    "link": "/hello/",
-    "activeMatch": "/hello/"
+    "text": "前端工具链",
+    "link": "/front_env_utils/",
+    "activeMatch": "/front_env_utils/"
+  },
+  {
+    "text": "vue生态",
+    "link": "/vue/",
+    "activeMatch": "/vue/"
   }
 ]
