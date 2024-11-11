@@ -1,0 +1,314 @@
+main.py
+
+```python
+from pptx import Presentation
+import re
+import tkinter as tk
+from tkinter import filedialog, messagebox, simpledialog
+import os
+import sys
+
+def copy_font_format(source_font, target_font):
+    """复制字体格式，安全处理各种颜色类型"""
+    try:
+        target_font.name = source_font.name
+        target_font.size = source_font.size
+        target_font.bold = source_font.bold
+        target_font.italic = source_font.italic
+        
+        # 安全地复制颜色
+        if source_font.color.type == None:
+            return
+        
+        if hasattr(source_font.color, 'rgb'):
+            target_font.color.rgb = source_font.color.rgb
+        elif hasattr(source_font.color, 'theme_color'):
+            target_font.color.theme_color = source_font.color.theme_color
+    except Exception as e:
+        print(f"复制字体格式时出现警告（不影响主要功能）: {str(e)}")
+
+def get_user_settings():
+    """获取用户设置"""
+    # 创建设置窗口
+    settings_window = tk.Toplevel()
+    settings_window.title("设置")
+    settings_window.geometry("400x300")
+    
+    # 添加窗口关闭处理
+    def on_closing():
+        settings_window.destroy()
+        # 使用 sys.exit() 确保程序完全退出
+        sys.exit(0)
+    
+    settings_window.protocol("WM_DELETE_WINDOW", on_closing)
+    
+    # 价格标识设置
+    default_indicators = ['集采价', '特价', '零售价', '出厂价', '供货价']
+    indicators_var = tk.StringVar(value='\n'.join(default_indicators))
+    
+    # 倍数设置
+    multiplier_var = tk.StringVar(value="1.2")
+    
+    # 创建标签和文本框
+    tk.Label(settings_window, text="价格标识（每行一个）:").pack(pady=5)
+    indicators_text = tk.Text(settings_window, height=8, width=40)
+    indicators_text.insert('1.0', '\n'.join(default_indicators))
+    indicators_text.pack(pady=5)
+    
+    tk.Label(settings_window, text="价格倍数:").pack(pady=5)
+    multiplier_entry = tk.Entry(settings_window, textvariable=multiplier_var)
+    multiplier_entry.pack(pady=5)
+    
+    # 结果变量
+    result = {'confirmed': False, 'indicators': [], 'multiplier': 1.2}
+    
+    def on_confirm():
+        # 获取价格标识
+        indicators_text_value = indicators_text.get('1.0', tk.END).strip()
+        result['indicators'] = [x.strip() for x in indicators_text_value.split('\n') if x.strip()]
+        
+        # 获取并验证倍数
+        try:
+            multiplier = float(multiplier_var.get())
+            if multiplier <= 0:
+                messagebox.showerror("错误", "倍数必须大于0")
+                return
+            result['multiplier'] = multiplier
+            
+        except ValueError:
+            messagebox.showerror("错误", "请输入有效的数字")
+            return
+        
+        result['confirmed'] = True
+        settings_window.destroy()
+    
+    def on_cancel():
+        on_closing()  # 使用相同的关闭处理
+    
+    # 添加按钮
+    tk.Button(settings_window, text="确定", command=on_confirm).pack(pady=10)
+    tk.Button(settings_window, text="使用默认值", command=on_cancel).pack(pady=5)
+    
+    # 将窗口置于前台
+    settings_window.lift()
+    settings_window.focus_force()
+    
+    # 等待窗口关闭
+    settings_window.wait_window()
+    
+    # 如果窗口被关闭但没有确认，直接退出程序
+    if not result['confirmed']:
+        sys.exit(0)
+    
+    return result['indicators'], result['multiplier']
+
+def modify_prices(input_file, output_file, price_indicators, price_multiplier):
+    # 打开PPT文件
+    prs = Presentation(input_file)
+    
+    # 计数器
+    total_matches = 0
+    
+    # 打印初始倍数值，确保传入值正确
+    print(f"初始倍数设置: {price_multiplier}, 类型: {type(price_multiplier)}")
+    
+    # 遍历所有幻灯片
+    for slide_num, slide in enumerate(prs.slides, 1):
+        print(f"\n处理幻灯片 {slide_num}")
+        # 遍历幻灯片中的所有形状
+        for shape in slide.shapes:
+            # 检查形状是否包含文本
+            if hasattr(shape, "text_frame"):
+                # 遍历文本框中的所有段落
+                for paragraph in shape.text_frame.paragraphs:
+                    # 保存原始的段落格式
+                    original_alignment = paragraph.alignment
+                    original_level = paragraph.level
+                    
+                    # 合并段落中的所有文本
+                    full_text = ''.join(run.text for run in paragraph.runs)
+                    
+                    modified_text = full_text
+                    modified = False
+                    
+                    # 处理每种价格标识符
+                    for indicator in price_indicators:
+                        # 使用单个更智能的模式，避免重复匹配
+                        price_pattern = fr'{indicator}[\s：:]*?(\d+)(?:\s*元)?'
+                        
+                        matches = list(re.finditer(price_pattern, full_text, re.UNICODE))
+                        
+                        for match in matches:
+                            original_price_str = match.group(1)
+                            try:
+                                # 直接转换为整数
+                                original_price = int(original_price_str)
+                                
+                                # 计算新价格
+                                new_price = int(original_price * price_multiplier)
+                                
+                                # 详细的调试输出
+                                print("\n价格计算详情:")
+                                print(f"原始价格: {original_price}")
+                                print(f"使用的倍数: {price_multiplier}")
+                                print(f"计算结果: {new_price}")
+                                
+                                # 替换文本
+                                original_full = match.group(0)
+                                if "元" in original_full:
+                                    new_text = f"{indicator}：{new_price}元"
+                                else:
+                                    new_text = f"{indicator}：{new_price}"
+                                
+                                # 打印替换信息
+                                print(f"替换文本: {original_full} -> {new_text}")
+                                
+                                modified_text = modified_text.replace(original_full, new_text)
+                                modified = True
+                                total_matches += 1
+                                
+                            except Exception as e:
+                                print(f"处理价格时出错: {str(e)}")
+                                continue
+                    
+                    if modified:
+                        original_format = None
+                        if paragraph.runs:
+                            original_format = paragraph.runs[0].font
+                            
+                        for run in paragraph.runs:
+                            run.text = ""
+                        
+                        new_run = paragraph.add_run()
+                        new_run.text = modified_text
+                        
+                        if original_format:
+                            copy_font_format(original_format, new_run.font)
+                    
+                    paragraph.alignment = original_alignment
+                    paragraph.level = original_level
+    
+    prs.save(output_file)
+    return total_matches
+
+if __name__ == "__main__":
+    try:
+        # 创建tkinter根窗口
+        root = tk.Tk()
+        root.withdraw()
+        
+        # 添加主窗口的关闭处理
+        def on_root_closing():
+            root.destroy()
+            sys.exit(0)
+            
+        root.protocol("WM_DELETE_WINDOW", on_root_closing)
+        
+        # 获取用户设置
+        price_indicators, price_multiplier = get_user_settings()
+        
+        if not price_indicators:
+            messagebox.showwarning("警告", "未设置任何价格标识，将使用默认值")
+            price_indicators = ['集采价', '特价', '零售价', '出厂价']
+        
+        # 显示当前设置
+        settings_info = f"当前设置:\n价格标识: {', '.join(price_indicators)}\n价格倍数: {price_multiplier}"
+        messagebox.showinfo("设置信息", settings_info)
+
+        # 打开文件选择对话框
+        input_file = filedialog.askopenfilename(
+            title="选择要处理的PPT文件",
+            filetypes=[("PowerPoint文件", "*.pptx"), ("所有文件", "*.*")]
+        )
+
+        if input_file:
+            input_dir = os.path.dirname(input_file)
+            original_filename = os.path.basename(input_file)
+            output_filename = f"修改价格_{price_multiplier}倍_{original_filename}"
+            output_file = os.path.join(input_dir, output_filename)
+            
+            total_matches = modify_prices(input_file, output_file, price_indicators, price_multiplier)
+            
+            messagebox.showinfo("处理完成", 
+                f"文件处理完成！\n"
+                f"共修改了 {total_matches} 个价格\n"
+                f"新文件已保存: {output_filename}\n"
+                f"位置: {output_file}")
+        else:
+            messagebox.showwarning("提示", "未选择文件，程序退出。")
+            sys.exit(0)  # 添加这行确保程序退出
+            
+    except Exception as e:
+        messagebox.showerror("错误", f"处理文件时出错:\n{str(e)}")
+        sys.exit(1)  # 发生错误时退出
+```
+build.py
+
+```python
+import PyInstaller.__main__
+import os
+import shutil
+import sys
+
+# 清理旧的构建文件
+def clean_old_build():
+    paths_to_clean = ['build', 'dist', '价格修改工具.spec']
+    for path in paths_to_clean:
+        try:
+            if os.path.isfile(path):
+                os.remove(path)
+            elif os.path.isdir(path):
+                shutil.rmtree(path)
+        except Exception as e:
+            print(f"清理 {path} 时出错: {e}")
+
+# 清理旧的构建文件
+clean_old_build()
+
+# 构建参数
+build_args = [
+    'main.py',
+    '--name=价格修改工具',
+    '--onefile',
+    '--noconsole',
+    '--clean',
+    '--windowed',
+    '--add-data=README.txt;.',
+    # 添加额外的选项
+    '--distpath=./dist',
+    '--workpath=./build',
+    '--specpath=.',
+    '--noconfirm',  # 不询问覆盖确认
+]
+
+try:
+    PyInstaller.__main__.run(build_args)
+    print("打包完成！")
+except Exception as e:
+    print(f"打包过程中出错: {e}")
+    sys.exit(1) 
+```
+
+readme.txt
+```txt
+pip install python-pptx pyinstaller
+pyinstaller --name="价格修改工具" --onefile --noconsole --clean --windowed main.py
+// 或者
+python build.py
+================
+价格修改工具
+版本：1.2
+功能：自动修改PPT文件中的价格（支持自定义倍数和价格标识）
+使用方法：
+1. 双击运行程序
+2. 在设置窗口中：
+   - 可以添加或修改价格标识（每行输入一个）
+   - 可以设置价格倍数（默认1.2倍）
+   - 也可以直接使用默认设置
+3. 在文件选择窗口中选择要处理的PPT文件
+4. 程序会自动处理并将结果保存到与原文件相同的目录下
+5. 新文件名格式为"修改价格_倍数_原文件名.pptx"
+
+默认支持的价格标识：集采价、特价、零售价、出厂价、供货价 
+```
+

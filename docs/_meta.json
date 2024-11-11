@@ -13,5 +13,10 @@
     "text": "vue生态",
     "link": "/vue/",
     "activeMatch": "/vue/"
+  },
+  {
+    "text": "python",
+    "link": "/python/修改ppt中指定文字工具",
+    "activeMatch": "^/python/"
   }
 ]
