@@ -1,0 +1,238 @@
+# TypeScript 基础学习
+
+## 1.TypeScript 泛型
+
+```typescript
+function identity<T>(arg: T): T {
+  return arg;
+}
+let output = identity<string>("myString");
+console.log(output);
+
+function loggingIdentity<T,U>(name: T, age: U): T {
+    return name
+}
+let output = loggingIdentity<string, number>("myString", 1);
+```
+
+## 2 联合类型
+
+```typescript
+function printId(id: number | string) {
+  console.log("Your ID is: " + id);
+}
+printId(101);
+printId("202");
+
+
+function greet(person:string|string[]):string|string[] {
+    if (typeof person === "string") {
+        return `Hello, ${person}!`;
+    } else if (Array.isArray(person)) {
+        return person.map((name) => `Hello, ${name}!`);
+    }
+    throw new Error("Unable to greet"); 
+}             
+```
+
+## 3. 交叉类型
+[交叉类型](/image_ts/交叉类型.png)
+
+### 1. 基本对象类型交叉
+
+```typescript
+type Person = {
+    name: string;
+    age: number;
+};
+
+type Employee = {
+    employeeId: string;
+    department: string;
+};
+
+type PersonEmployee = Person & Employee;
+
+// 结果类型包含所有属性
+const personEmployee: PersonEmployee = {
+    name: "John",
+    age: 30,
+    employeeId: "E123",
+    department: "IT"
+};
+```
+解释: PersonEmployee 包含了 Person 和 Employee 的所有属性，对象必须同时满足两个类型的约束。
+### 2. 相同属性名但类型兼容
+
+```typescript
+type A = {
+    id: number;
+    name: string;
+};
+
+type B = {
+    id: number;
+    email: string;
+};
+
+type AB = A & B;
+
+// id属性类型相同，可以正常交叉
+const ab: AB = {
+    id: 1,
+    name: "John",
+    email: "john@example.com"
+};
+```
+解释: 当两个类型有相同的属性且类型兼容时，交叉类型会保留该属性。
+### 3. 相同属性名但类型不兼容
+
+```typescript
+type A = {
+    id: number;
+};
+
+type B = {
+    id: string;
+};
+
+type AB = A & B; // id的类型为 never
+
+// 无法创建这样的对象，因为id不能同时是number和string
+```
+解释: 当两个类型有相同属性但类型不兼容时，该属性的类型变为 never，因为没有任何值能同时满足两种不兼容的类型。
+### 4. 可选属性的交叉
+```typescript
+type A = {
+    name?: string;
+    age: number;
+};
+
+type B = {
+    name: string;
+    email?: string;
+};
+
+type AB = A & B;
+
+// name变为必需属性，email和age也是必需的
+const ab: AB = {
+    name: "John",
+    age: 30,
+    email: "john@example.com"
+};
+```
+### 5. 方法类型的交叉
+```typescript
+type Logger = {
+    log: (message: string) => void;
+};
+
+type ErrorLogger = {
+    log: (error: Error) => void;
+    error: (message: string) => void;
+};
+
+type CombinedLogger = Logger & ErrorLogger;
+
+// log方法需要同时接受string和Error参数
+const logger: CombinedLogger = {
+    log: (input: string | Error) => {
+        if (typeof input === "string") {
+            console.log(input);
+        } else {
+            console.error(input.message);
+        }
+    },
+    error: (message: string) => {
+        console.error(message);
+    }
+};
+```
+解释: 方法交叉时，参数类型会变成联合类型，返回类型也会相应合并。
+
+### 写一个 PartialByKeys 把对象中指定的类型变为可选的
+```typescript
+type PartialByKeys<T, K extends keyof T> = {
+    [P in K] ?: T[P]; // 传入的属性变为可选
+} & {
+    [P in Exclude<keyof T, K>]: T[P]; // 剩余的属性保持不变
+
+}
+```
+
+```typescript
+type User = {
+    id: number;
+    name: string;
+    email: string;
+    password: string;
+};
+
+// 将 User 类型中的 email 和 password 设置为可选
+type UserWithOptionalFields = PartialByKeys<User, 'email' | 'password'>;
+
+const user: UserWithOptionalFields = {
+    id: 1,
+    name: "John",
+    // email 和 password 现在是可选的
+};
+```
+
+## 一些基础的内置的类型工具
+
+### 1. 1. 基本操作类型工具
+- Pick<T, K>: 从类型 T 中选择指定属性 K
+```typescript
+type User = { id: number; name: string; email: string };
+type UserBasic = Pick<User, 'name' | 'email'>; // { name: string; email: string }
+```
+- Omit<T, K>: 从类型 T 中排除指定属性 K     
+  ```typescript
+  type UserWithoutId = Omit<User, 'id'>; // { name: string; email: string }
+  ```
+ -  Omit<T, K>: 从类型 T 中排除指定属性 K     
+   ```typescript
+   type UserWithoutId = Omit<User, 'id'>; // { name: string; email: string }
+   ```
+- Partial<T>: 将类型 T 的所有属性设置为可选     
+   ```typescript
+   type PartialUser = Partial<User>; // { id?: number; name?: string; email?: string }
+   ```
+- Required<T>: 将类型 T 的所有属性设置为必需     
+   ```typescript
+   type RequiredUser = Required<PartialUser>; // { id: number; name: string; email: string }
+   ```
+### 2. 集合操作类型工具
+- Extract<T, U>: 提取 T 中可以赋值给 U 的类型     
+```typescript
+type T0 = Extract<'a' | 'b' | 'c', 'a' | 'f'>; // 'a'
+```
+
+- Exclude<T, U>: 从 T 中排除可以赋值给 U 的类型     
+```typescript
+type T1 = Exclude<'a' | 'b' | 'c', 'a' | 'f'>; // 'b' | 'c'
+```
+
+### 3. 函数相关类型工具
+
+- Parameters<T>: 获取函数类型 T 的参数类型
+```typescript
+type Func = (a: string, b: number) => void;
+type FuncParams = Parameters<Func>; // [a: string, b: number]
+```
+- ReturnType<T>: 获取函数类型 T 的返回值类型
+```typescript
+ type Func = (a: string, b: number) => string;
+ type FuncReturnType = ReturnType<Func>; // string
+```
+### 4. 其他类型工具
+
+- Record<K, T>: 创建一个具有指定
+  ```typescript
+  type UserInfo = Record<string, string>; // { [key: string]: string }
+  ```
+- Readonly<T>: 将类型 T 的所有属性变为只读  
+  ```typescript
+  type ReadonlyUser = Readonly<User>; // 所有属性都是 readonly
+  ```
