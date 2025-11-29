@@ -36,7 +36,7 @@ function greet(person:string|string[]):string|string[] {
 ```
 
 ## 3. 交叉类型
-[交叉类型](/image_ts/交叉类型.png)
+[交叉类型](../public/image_ts/交叉类型.png)
 
 ### 1. 基本对象类型交叉
 
@@ -179,60 +179,58 @@ const user: UserWithOptionalFields = {
 };
 ```
 
-## 一些基础的内置的类型工具
+## 4.一些基础的内置的类型工具
 
-### 1. 1. 基本操作类型工具
-- Pick<T, K>: 从类型 T 中选择指定属性 K
+### 1.基本操作类型工具
+
+- `Pick<T, K>`: 从类型 T 中选择指定属性 K
+  
 ```typescript
 type User = { id: number; name: string; email: string };
 type UserBasic = Pick<User, 'name' | 'email'>; // { name: string; email: string }
 ```
-- Omit<T, K>: 从类型 T 中排除指定属性 K     
+- `Omit<T, K>`: 从类型 T 中排除指定属性 K     
   ```typescript
   type UserWithoutId = Omit<User, 'id'>; // { name: string; email: string }
   ```
- -  Omit<T, K>: 从类型 T 中排除指定属性 K     
-   ```typescript
-   type UserWithoutId = Omit<User, 'id'>; // { name: string; email: string }
-   ```
-- Partial<T>: 将类型 T 的所有属性设置为可选     
+  - `Partial<T>`: 将类型 T 的所有属性设置为可选     
    ```typescript
    type PartialUser = Partial<User>; // { id?: number; name?: string; email?: string }
    ```
-- Required<T>: 将类型 T 的所有属性设置为必需     
+- `Required<T>` : 将类型 T 的所有属性设置为必需     
    ```typescript
    type RequiredUser = Required<PartialUser>; // { id: number; name: string; email: string }
    ```
 ### 2. 集合操作类型工具
-- Extract<T, U>: 提取 T 中可以赋值给 U 的类型     
+- `Extract<T, U>`: 提取 T 中可以赋值给 U 的类型     
 ```typescript
 type T0 = Extract<'a' | 'b' | 'c', 'a' | 'f'>; // 'a'
 ```
 
-- Exclude<T, U>: 从 T 中排除可以赋值给 U 的类型     
+- `Exclude<T, U>`: 从 T 中排除可以赋值给 U 的类型     
 ```typescript
 type T1 = Exclude<'a' | 'b' | 'c', 'a' | 'f'>; // 'b' | 'c'
 ```
 
 ### 3. 函数相关类型工具
 
-- Parameters<T>: 获取函数类型 T 的参数类型
+- `Parameters<T>`: 获取函数类型 T 的参数类型  
 ```typescript
 type Func = (a: string, b: number) => void;
 type FuncParams = Parameters<Func>; // [a: string, b: number]
 ```
-- ReturnType<T>: 获取函数类型 T 的返回值类型
+- `ReturnType<T>`: 获取函数类型 T 的返回值类型
 ```typescript
  type Func = (a: string, b: number) => string;
  type FuncReturnType = ReturnType<Func>; // string
 ```
 ### 4. 其他类型工具
 
-- Record<K, T>: 创建一个具有指定
+- `Record<K, T>`: 创建一个具有指定
   ```typescript
   type UserInfo = Record<string, string>; // { [key: string]: string }
   ```
-- Readonly<T>: 将类型 T 的所有属性变为只读  
+- `Readonly<T>`: 将类型 T 的所有属性变为只读  
   ```typescript
   type ReadonlyUser = Readonly<User>; // 所有属性都是 readonly
   ```

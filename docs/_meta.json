@@ -15,6 +15,11 @@
     "activeMatch": "/vue/"
   },
   {
+    "text": "基础语言学习",
+    "link": "/ts/ts基础学习",
+    "activeMatch": "^/ts/"
+  },
+  {
     "text": "python",
     "link": "/python/修改ppt中指定文字工具",
     "activeMatch": "^/python/"

@@ -15,4 +15,8 @@ export default defineConfig({
       // { icon: 'github', mode: 'link', content: 'https://github.com/web-infra-dev/rspress' },
     ],
   },
+   route: {
+    // These files will be excluded from the routing (support glob pattern)
+    exclude: ['docs/**/*.ts']
+  }
 });
